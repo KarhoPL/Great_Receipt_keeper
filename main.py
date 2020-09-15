@@ -51,7 +51,7 @@ def Creating_DF_from_image(receipt_image):
                 price_per_unit = float(splited_prod[star_index + 1].replace(",","."))
                 name = " ".join(splited_prod[:star_index - 1])
             # handling if one of valueas was wrongly recognized 
-            final_charge_counted = (floor((amount * price_per_unit)*100))/100
+            final_charge_counted = (round((amount * price_per_unit)*100))/100 if (amount * price_per_unit)%0.01>=0.0065 else (floor((amount * price_per_unit)*100))/100
             final_charge = float(splited_prod[-2].replace(",","."))
             input_to_float = lambda imputing_value, old_value : float(imputing_value.replace(",",".")) if imputing_value else old_value
             if final_charge != final_charge_counted:
