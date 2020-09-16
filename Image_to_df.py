@@ -2,11 +2,12 @@ from PIL import Image, ImageEnhance, ImageFilter
 import pytesseract
 import pandas as pd
 import csv
+import json
 import numpy as np
 import sys
 import codecs
 import datetime as dt
-from math import floor
+from math import floor, fabs
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
 #funkcja zwracająca listę zakupów z zdjecia paragonu
@@ -55,13 +56,22 @@ def Creating_DF_from_image(receipt_image):
             final_charge = float(splited_prod[-2].replace(",","."))
             input_to_float = lambda imputing_value, old_value : float(imputing_value.replace(",",".")) if imputing_value else old_value
             if final_charge != final_charge_counted:
-                print(f'{name} | {price_per_unit} | {amount} | {final_charge} | {final_charge_counted}')
-                print(f"Error in recognition of product, please write correct values for {name}")
-                amount = input_to_float(input("Amount: "), amount)
-                price_per_unit = input_to_float(input("Price per unit of:"), price_per_unit)
-                final_charge = input_to_float(input("Final charge of:"), final_charge)
+                #print(price_per_unit-(price_per_unit%0.1)*amount)
+                if fabs(((price_per_unit-(price_per_unit%0.1))*amount) - final_charge)<0.01:
+                    price_per_unit = (int((price_per_unit-(price_per_unit%0.1))*100))/100
+                else:
+                    print(f'{name} | {price_per_unit} | {amount} | {final_charge} | {final_charge_counted}')
+                    print(f"Error in recognition of product, please write correct values for {name}")
+                    amount = input_to_float(input("Amount: "), amount)
+                    price_per_unit = input_to_float(input("Price per unit of:"), price_per_unit)
+                    final_charge = input_to_float(input("Final charge of:"), final_charge)
             products_list_to_df.append([name, price_per_unit, amount, final_charge])
     df = pd.DataFrame(np.array(products_list_to_df), columns = ["Product Name", "Price", "Amount", "Final Charge"])
     return df
+
+
+def To_storage(df_receipt):
+    for line in df_receipt:
+        print(line)
 
 print(Creating_DF_from_image('unnamed3.jpg'))
