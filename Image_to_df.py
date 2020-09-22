@@ -13,6 +13,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tessera
 #funkcja zwracająca listę zakupów z zdjecia paragonu
 def Creating_DF_from_image(receipt_image):
     products_list_to_df = []
+    products_names = []
     im = Image.open(receipt_image) # the second one 
     im = im.filter(ImageFilter.MedianFilter())
     enhancer = ImageEnhance.Contrast(im)
@@ -65,13 +66,14 @@ def Creating_DF_from_image(receipt_image):
                     amount = input_to_float(input("Amount: "), amount)
                     price_per_unit = input_to_float(input("Price per unit of:"), price_per_unit)
                     final_charge = input_to_float(input("Final charge of:"), final_charge)
-            products_list_to_df.append([name, price_per_unit, amount, final_charge])
-    df = pd.DataFrame(np.array(products_list_to_df), columns = ["Product Name", "Price", "Amount", "Final Charge"])
+            products_list_to_df.append([ price_per_unit, amount, final_charge])
+            products_names.append(name)
+    df = pd.DataFrame(np.array(products_list_to_df), index = products_names, columns = [ "Price", "Amount", "Final Charge"])
     return df
 
+storage = "storage.json"
+df = Creating_DF_from_image('unnamed.jpg')
 
-def To_storage(df_receipt):
-    for line in df_receipt:
-        print(line)
-
-print(Creating_DF_from_image('unnamed3.jpg'))
+def To_Storage(df):
+    with open("storage.json", "w") as json_file:
+        df.to_json(storage, indent=4,orient='index')
