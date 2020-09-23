@@ -12,7 +12,7 @@ from math import floor, fabs
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
 #funkcja zwracająca listę zakupów z zdjecia paragonu
 def Creating_DF_from_image(receipt_image):
-    products_list_to_df = []
+    products_list_to_df = {}
     products_names = []
     im = Image.open(receipt_image) # the second one 
     im = im.filter(ImageFilter.MedianFilter())
@@ -24,8 +24,9 @@ def Creating_DF_from_image(receipt_image):
     first_product = 0
     last_product = 0
     for line in lines:
-        if line[0:4] == "2020" : first_product = lines.index(line) + 1
+        if line[0:4] == "2020" or line[0:4] == '2820' or line[0:4] == '2028' or line[0:4] == '2828': first_product = lines.index(line) + 1
         if line[0:5] == "PTU A" : last_product = lines.index(line)
+        #print(line)
     bought_products = []
     for i in range(first_product,last_product):
         bought_products.append(lines[i])
@@ -66,14 +67,41 @@ def Creating_DF_from_image(receipt_image):
                     amount = input_to_float(input("Amount: "), amount)
                     price_per_unit = input_to_float(input("Price per unit of:"), price_per_unit)
                     final_charge = input_to_float(input("Final charge of:"), final_charge)
-            products_list_to_df.append([ price_per_unit, amount, final_charge])
-            products_names.append(name)
-    df = pd.DataFrame(np.array(products_list_to_df), index = products_names, columns = [ "Price", "Amount", "Final Charge"])
+            if name not in products_names:
+              products_list_to_df[name] ={"Price": price_per_unit, "Amount" : amount, "Final Charge": final_charge}
+              products_names.append(name)
+            else:
+              #print(type(products_list_to_df[name]['Amount']))
+              products_list_to_df[name]['Amount'] += amount
+              products_list_to_df[name]['Final Charge'] += final_charge
+        #print(name, price_per_unit, amount, final_charge) 
+    #df = pd.DataFrame(np.array(products_list_to_df), index = products_names, columns = ['Name', "Price", "Amount", "Final Charge"])
+    df = json.dumps(products_list_to_df, indent = 4)
     return df
 
-storage = "storage.json"
-df = Creating_DF_from_image('unnamed.jpg')
+storage_file = "storage.json"
+products_dict = Creating_DF_from_image('unnamed3.jpg')
+#print(dff)
 
-def To_Storage(df):
-    with open("storage.json", "w") as json_file:
-        df.to_json(storage, indent=4,orient='index')
+
+
+def To_Storage(df,json_storage_file):
+    products_dict = json.loads(df)
+    with open(json_storage_file, 'r') as json_file:
+        storage_dict = json.load(json_file)
+    for prdct_name in products_dict:
+        if prdct_name in storage_dict:
+            if (products_dict[prdct_name]['Price']) ==(storage_dict[prdct_name]['Price']):
+                storage_dict[prdct_name]['Amount'] += products_dict[prdct_name]['Amount']
+                print("Zmieniono ilość  ", prdct_name)
+        else :
+            storage_dict[prdct_name] = {
+                "Price": products_dict[prdct_name]['Price'],
+                "Amount": products_dict[prdct_name]['Amount'],
+                "Final Charge": products_dict[prdct_name]['Final Charge']
+                }
+            print('Dodano produkt ', prdct_name)
+    with open(storage_file, 'w') as json_file:
+        json.dump(storage_dict,json_file , indent=4)
+
+To_Storage(products_dict,storage_file)
