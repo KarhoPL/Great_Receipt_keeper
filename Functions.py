@@ -11,7 +11,7 @@ from math import floor, fabs
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
 #funkcja zwracająca listę zakupów z zdjecia paragonu
-def Creating_DF_from_image(receipt_image):
+def Creating_Dicts_from_image(receipt_image,json_storage_file):
     products_list_to_df = {}
     products_names = []
     im = Image.open(receipt_image) # the second one 
@@ -56,9 +56,7 @@ def Creating_DF_from_image(receipt_image):
             # handling if one of valueas was wrongly recognized 
             final_charge_counted = (round((amount * price_per_unit)*100))/100 if (amount * price_per_unit)%0.01>=0.0065 else (floor((amount * price_per_unit)*100))/100
             final_charge = float(splited_prod[-2].replace(",","."))
-            input_to_float = lambda imputing_value, old_value : float(imputing_value.replace(",",".")) if imputing_value else old_value
             if final_charge != final_charge_counted:
-                #print(price_per_unit-(price_per_unit%0.1)*amount)
                 if fabs(((price_per_unit-(price_per_unit%0.1))*amount) - final_charge)<0.01:
                     price_per_unit = (int((price_per_unit-(price_per_unit%0.1))*100))/100
                 else:
@@ -66,23 +64,39 @@ def Creating_DF_from_image(receipt_image):
                     print(f"Error in recognition of product, please write correct values for {name}")
                     amount = input_to_float(input("Amount: "), amount)
                     price_per_unit = input_to_float(input("Price per unit of:"), price_per_unit)
-                    final_charge = input_to_float(input("Final charge of:"), final_charge)
             if name not in products_names:
-              products_list_to_df[name] ={"Price": price_per_unit, "Amount" : amount, "Final Charge": final_charge}
+              products_list_to_df[name] ={"Price": price_per_unit, "Amount" : amount}
               products_names.append(name)
             else:
-              #print(type(products_list_to_df[name]['Amount']))
               products_list_to_df[name]['Amount'] += amount
-              products_list_to_df[name]['Final Charge'] += final_charge
-        #print(name, price_per_unit, amount, final_charge) 
-    #df = pd.DataFrame(np.array(products_list_to_df), index = products_names, columns = ['Name', "Price", "Amount", "Final Charge"])
     df = json.dumps(products_list_to_df, indent = 4)
+    products_dict = json.loads(df)
+    with open(json_storage_file, 'r') as json_file:
+        storage_dict = json.load(json_file)
+    for prdct_name in products_dict:
+        if prdct_name in storage_dict:
+            storage_dict[prdct_name]['Price'] =(storage_dict[prdct_name]['Price']*storage_dict[prdct_name]['Amount']+products_dict[prdct_name]['Amount']*products_dict[prdct_name]['Price'])/(storage_dict[prdct_name]['Amount']+products_dict[prdct_name]['Amount'])
+            storage_dict[prdct_name]['Amount'] += products_dict[prdct_name]['Amount']
+            print("Zmieniono ilość  ", prdct_name)
+        else :
+            storage_dict[prdct_name] = {
+                "Price": products_dict[prdct_name]['Price'],
+                "Amount": products_dict[prdct_name]['Amount']
+                }
+            print('Dodano produkt ', prdct_name)
+    with open(storage_file, 'w') as json_file:
+        json.dump(storage_dict,json_file , indent=4)
     return df
 
 storage_file = "storage.json"
-products_dict = Creating_DF_from_image('unnamed3.jpg')
-#print(dff)
+receipt_image = 'unnamed.jpg'
+#products_dict = Creating_Dicts_from_image(receipt_image, storage_file)
 
+def input_to_float(imputing_value, old_value):
+    return float(imputing_value.replace(",",".")) if imputing_value else float(old_value)
+
+def input_old_if_not_new(imputing_value, old_value):
+    return imputing_value if imputing_value else old_value
 
 
 def To_Storage(df,json_storage_file):
@@ -104,4 +118,33 @@ def To_Storage(df,json_storage_file):
     with open(storage_file, 'w') as json_file:
         json.dump(storage_dict,json_file , indent=4)
 
-To_Storage(products_dict,storage_file)
+
+def To_Storage_manually(storage_file):
+    with open(storage_file, 'r') as json_file:
+        storage_dict = json.load(json_file)
+    prod_names = [name for name in storage_dict]
+    print(prod_names)
+    contin = 'y'
+    while contin == 'y' or contin == 'Y':
+        name = input("Product name:  ")
+        amount = float(input("Product amount:  "))
+        if name in prod_names:
+            price = input_to_float(input(f"Product price per unit (defoult: %.2f ): " %(storage_dict[name]['Price'])),(storage_dict[name]['Price']))
+            storage_dict[name] = {
+                "Price": (storage_dict[name]['Price']* float(storage_dict[name]['Amount'])+amount*price)/(storage_dict[name]['Amount']+amount),
+                "Amount": storage_dict[name]['Amount'] + amount
+                }
+        else:
+            price = input("Product price per unit: ")
+            storage_dict[name] = {
+                "Price": price,
+                "Amount": amount
+                }
+        contin = input_old_if_not_new(input('Add next product? '), contin)
+    with open(storage_file, 'w') as json_file:
+        json.dump(storage_dict,json_file , indent=4)
+    print('Adding completed.')
+
+To_Storage_manually(storage_file)
+
+
