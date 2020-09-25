@@ -8,9 +8,18 @@ import sys
 import codecs
 import datetime as dt
 from math import floor, fabs
+import datetime as dt
+
+#function helping with entering product data
+def input_to_float(imputing_value, old_value):
+    return float(imputing_value.replace(",",".")) if imputing_value else float(old_value)
+
+def input_old_if_not_new(imputing_value, old_value):
+    return imputing_value if imputing_value else old_value
+
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
-#funkcja zwracająca listę zakupów z zdjecia paragonu
+#Function updating storage file
 def Creating_Dicts_from_image(receipt_image,json_storage_file):
     products_list_to_df = {}
     products_names = []
@@ -88,37 +97,7 @@ def Creating_Dicts_from_image(receipt_image,json_storage_file):
         json.dump(storage_dict,json_file , indent=4)
     return df
 
-storage_file = "storage.json"
-receipt_image = 'unnamed.jpg'
-#products_dict = Creating_Dicts_from_image(receipt_image, storage_file)
-
-def input_to_float(imputing_value, old_value):
-    return float(imputing_value.replace(",",".")) if imputing_value else float(old_value)
-
-def input_old_if_not_new(imputing_value, old_value):
-    return imputing_value if imputing_value else old_value
-
-
-def To_Storage(df,json_storage_file):
-    products_dict = json.loads(df)
-    with open(json_storage_file, 'r') as json_file:
-        storage_dict = json.load(json_file)
-    for prdct_name in products_dict:
-        if prdct_name in storage_dict:
-            if (products_dict[prdct_name]['Price']) ==(storage_dict[prdct_name]['Price']):
-                storage_dict[prdct_name]['Amount'] += products_dict[prdct_name]['Amount']
-                print("Zmieniono ilość  ", prdct_name)
-        else :
-            storage_dict[prdct_name] = {
-                "Price": products_dict[prdct_name]['Price'],
-                "Amount": products_dict[prdct_name]['Amount'],
-                "Final Charge": products_dict[prdct_name]['Final Charge']
-                }
-            print('Dodano produkt ', prdct_name)
-    with open(storage_file, 'w') as json_file:
-        json.dump(storage_dict,json_file , indent=4)
-
-
+#Function to manually add products
 def To_Storage_manually(storage_file):
     with open(storage_file, 'r') as json_file:
         storage_dict = json.load(json_file)
@@ -128,14 +107,14 @@ def To_Storage_manually(storage_file):
     while contin == 'y' or contin == 'Y':
         name = input("Product name:  ")
         amount = float(input("Product amount:  "))
-        if name in prod_names:
+        if name.lower() in map(lambda x: x.lower(), prod_names):
             price = input_to_float(input(f"Product price per unit (defoult: %.2f ): " %(storage_dict[name]['Price'])),(storage_dict[name]['Price']))
             storage_dict[name] = {
                 "Price": (storage_dict[name]['Price']* float(storage_dict[name]['Amount'])+amount*price)/(storage_dict[name]['Amount']+amount),
                 "Amount": storage_dict[name]['Amount'] + amount
                 }
         else:
-            price = input("Product price per unit: ")
+            price = input_to_float(input("Product price per unit: "),0)
             storage_dict[name] = {
                 "Price": price,
                 "Amount": amount
@@ -145,6 +124,35 @@ def To_Storage_manually(storage_file):
         json.dump(storage_dict,json_file , indent=4)
     print('Adding completed.')
 
-To_Storage_manually(storage_file)
+#Funcion to remove produkts from storage and add to list in consumed file
+def Consumed(storage_file, consumed_file, date = dt.date.today().strftime("%d.%m.%Y")):
+    with open(storage_file, 'r') as json_file:
+        storage_dict = json.load(json_file)
+    with open(consumed_file, 'r') as consumed_fl:
+        consumed_dict = json.load(consumed_fl)
+    prod_names = [name for name in storage_dict]
+    print(prod_names)
+    contin = 'y'
+    while contin == 'y' or contin == 'Y':
+        name = input("Product name:  ")
+        if name.lower() in map(lambda x: x.lower(), prod_names):
+            print("%f of %s left in storage." %(storage_dict[name]["Amount"], name))
+            amount = input_to_float(input("Product amount:  "), 1)
+            storage_dict[name]["Amount"] = storage_dict[name]["Amount"] - amount
+            price = storage_dict[name]["Price"]
+        else:
+            price = input_to_float(input("There isn't %s in your storage.\n Please enter it's price: "), 0)
+            amount = float(input("Product amount:  "))
+        name_dict = 1
+        consumed_dict[date].update({name : {
+            "Amount" : amount,
+            "Price" : price,
+            "Portion price" : amount*price    
+        }})
+        contin = input_old_if_not_new(input('Add next product? '), contin)
+    with open(consumed_file, 'w') as json_file:
+        json.dump(consumed_dict,json_file , indent=4)
+    print('Adding completed.')
+    
 
 

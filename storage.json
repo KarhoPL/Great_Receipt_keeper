@@ -1,0 +1,38 @@
+{
+    "Banany Premium sw.": {
+        "Price": 4.85,
+        "Amount": 1.014
+    },
+    "Jogurt natur. 0": {
+        "Price": 1.29,
+        "Amount": 2.0
+    },
+    "Wino Egri Rose": {
+        "Price": 13.99,
+        "Amount": 1.0
+    },
+    "Jezyny sw.125g": {
+        "Price": 5.99,
+        "Amount": 1.0
+    },
+    "Dynia Hokkaido": {
+        "Price": 2.99,
+        "Amount": 1.212
+    },
+    "Poledwiczka z ind.": {
+        "Price": 17.9,
+        "Amount": 0.464
+    },
+    "Parow. z ind.Piratki": {
+        "Price": 2.99,
+        "Amount": 1.0
+    },
+    "soczek": {
+        "Price": 2.0,
+        "Amount": 2.0
+    },
+    "ciastka": {
+        "Price": 2.0,
+        "Amount": 6.0
+    }
+}
