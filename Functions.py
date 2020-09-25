@@ -20,7 +20,7 @@ def input_old_if_not_new(imputing_value, old_value):
 
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
 #Function updating storage file
-def Creating_Dicts_from_image(receipt_image,json_storage_file):
+def Creating_Dicts_from_image(receipt_image,json_storage_file, purchase_date = dt.date.today().strftime('%d.%m.%Y')):
     products_list_to_df = {}
     products_names = []
     im = Image.open(receipt_image) # the second one 
@@ -86,11 +86,13 @@ def Creating_Dicts_from_image(receipt_image,json_storage_file):
         if prdct_name in storage_dict:
             storage_dict[prdct_name]['Price'] =(storage_dict[prdct_name]['Price']*storage_dict[prdct_name]['Amount']+products_dict[prdct_name]['Amount']*products_dict[prdct_name]['Price'])/(storage_dict[prdct_name]['Amount']+products_dict[prdct_name]['Amount'])
             storage_dict[prdct_name]['Amount'] += products_dict[prdct_name]['Amount']
+            storage_dict[prdct_name]['Purchased'] = purchase_date
             print("Zmieniono ilość  ", prdct_name)
         else :
             storage_dict[prdct_name] = {
                 "Price": products_dict[prdct_name]['Price'],
-                "Amount": products_dict[prdct_name]['Amount']
+                "Amount": products_dict[prdct_name]['Amount'],
+                'Purchased': purchase_date
                 }
             print('Dodano produkt ', prdct_name)
     with open(storage_file, 'w') as json_file:
@@ -141,18 +143,69 @@ def Consumed(storage_file, consumed_file, date = dt.date.today().strftime("%d.%m
             storage_dict[name]["Amount"] = storage_dict[name]["Amount"] - amount
             price = storage_dict[name]["Price"]
         else:
-            price = input_to_float(input("There isn't %s in your storage.\n Please enter it's price: "), 0)
+            price = input_to_float(input(f"There isn't {name} in your storage.\n Please enter it's price: "), 0)
             amount = float(input("Product amount:  "))
         name_dict = 1
-        consumed_dict[date].update({name : {
-            "Amount" : amount,
-            "Price" : price,
-            "Portion price" : amount*price    
-        }})
+        if date in consumed_dict:
+            consumed_dict[date].update({name : {
+                "Amount" : amount,
+                "Price" : price,
+                "Portion price" : amount*price    
+            }})
+        else:
+            consumed_dict[date] = {name : {
+                "Amount" : amount,
+                "Price" : price,
+                "Portion price" : amount*price    
+            }}
         contin = input_old_if_not_new(input('Add next product? '), contin)
     with open(consumed_file, 'w') as json_file:
         json.dump(consumed_dict,json_file , indent=4)
     print('Adding completed.')
     
+#Function to count how much money was spend in period of time
+def Costs(beg_date, end_date = "", consumed_file = "consumed.json"):
+    if end_date == "":
+        end_date = beg_date
+    with open(consumed_file, 'r') as consumed_fl:
+        consumed_dict = json.load(consumed_fl)
+    start = dt.datetime.strptime(beg_date, "%d.%m.%Y")
+    end = dt.datetime.strptime(end_date, "%d.%m.%Y")
+    cost = 0
+    for date in consumed_dict:
+        if start <= dt.datetime.strptime(date,  "%d.%m.%Y") <= end:
+            for prdct in consumed_dict[date]:
+                cost += consumed_dict[date][prdct]["Portion price"]
+    return cost
 
-
+def Make_a_meal(storage_file):
+    with open(storage_file, 'r') as file:
+        storage_dict = json.load(file)
+    contin = 'y'
+    meal_name = input("Meal name: ")
+    print("Enter ingredients: ")
+    prdcts_in_storage = [prdct_name for prdct_name in storage_dict]
+    cost = 0
+    while contin == 'y' or contin == 'Y':
+        name = input("Ingredient name: ")
+        if name not in prdcts_in_storage:
+            price = input_to_float(input(f"{name} not in storage, enter it's price :"),0)
+        else:
+            amount = input_to_float(input("Ingredient amount: "), 0)
+            price = storage_dict[name]["Price"]*amount
+            storage_dict[name]["Amount"] -= amount
+        cost += price
+        contin = input_old_if_not_new(input("Add next ingredient? "), contin)
+    portions = input_to_float(input(f"How many portions was made? "), 1)
+    if meal_name in prdcts_in_storage:
+        storage_dict[meal_name]["Amount"] = portions + storage_dict[meal_name]["Amount"] 
+        storage_dict[meal_name]['Price'] = (cost + storage_dict[meal_name]["Amount"]*storage_dict[meal_name]["Price"])/(storage_dict[meal_name]["Amount"] + portions)
+    else:
+        storage_dict[meal_name] = {
+            "Amount" : portions,
+            "Price" : cost/portions
+    }
+    with open(storage_file, 'w') as file:
+        json.dump(storage_dict,file, indent=4)
+        
+        
