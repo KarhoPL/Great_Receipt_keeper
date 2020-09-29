@@ -17,10 +17,8 @@ def input_to_float(imputing_value, old_value):
 def input_old_if_not_new(imputing_value, old_value):
     return imputing_value if imputing_value else old_value
 
-
-pytesseract.pytesseract.tesseract_cmd = r'C:\Users\kharacz\AppData\Local\Tesseract-OCR\tesseract.exe'
 #Function updating storage file
-def Creating_Dicts_from_image(receipt_image,json_storage_file, purchase_date = dt.date.today().strftime('%d.%m.%Y')):
+def To_storage_from_receipt(receipt_image,json_storage_file, purchase_date = dt.date.today().strftime('%d.%m.%Y')):
     products_list_to_df = {}
     products_names = []
     im = Image.open(receipt_image) # the second one 
@@ -95,12 +93,12 @@ def Creating_Dicts_from_image(receipt_image,json_storage_file, purchase_date = d
                 'Purchased': purchase_date
                 }
             print('Dodano produkt ', prdct_name)
-    with open(storage_file, 'w') as json_file:
+    with open(json_storage_file, 'w') as json_file:
         json.dump(storage_dict,json_file , indent=4)
     return df
 
 #Function to manually add products
-def To_Storage_manually(storage_file):
+def To_Storage_manually(storage_file, adding_date = dt.date.today().strftime('%d.%m.%Y')):
     with open(storage_file, 'r') as json_file:
         storage_dict = json.load(json_file)
     prod_names = [name for name in storage_dict]
@@ -113,13 +111,15 @@ def To_Storage_manually(storage_file):
             price = input_to_float(input(f"Product price per unit (defoult: %.2f ): " %(storage_dict[name]['Price'])),(storage_dict[name]['Price']))
             storage_dict[name] = {
                 "Price": (storage_dict[name]['Price']* float(storage_dict[name]['Amount'])+amount*price)/(storage_dict[name]['Amount']+amount),
-                "Amount": storage_dict[name]['Amount'] + amount
+                "Amount": storage_dict[name]['Amount'] + amount,
+                'Purchased' : adding_date
                 }
         else:
             price = input_to_float(input("Product price per unit: "),0)
             storage_dict[name] = {
                 "Price": price,
-                "Amount": amount
+                "Amount": amount,
+                'Purchased' : adding_date
                 }
         contin = input_old_if_not_new(input('Add next product? '), contin)
     with open(storage_file, 'w') as json_file:
@@ -145,7 +145,6 @@ def Consumed(storage_file, consumed_file, date = dt.date.today().strftime("%d.%m
         else:
             price = input_to_float(input(f"There isn't {name} in your storage.\n Please enter it's price: "), 0)
             amount = float(input("Product amount:  "))
-        name_dict = 1
         if date in consumed_dict:
             consumed_dict[date].update({name : {
                 "Amount" : amount,
@@ -209,3 +208,4 @@ def Make_a_meal(storage_file):
         json.dump(storage_dict,file, indent=4)
         
         
+To_storage_from_receipt("unnamed.jpg","storage.json")
